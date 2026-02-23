@@ -21,7 +21,6 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #
 ###############################################################################
-
 cd ${0%*/*}
 
 if [ ! -e Dockerfile ]; then
@@ -54,6 +53,8 @@ LEAVE_CONTAINER=${LEAVE_CONTAINER:-"no"}
 
 WDIR=/tmp/${DISTRO}${DISTRO_VERSION}${DISTRO_KERNEL}.$$
 
+CACHE="./cache"
+
 mkdir -p $WDIR
 
 echo "Downloading mlxbf-bootimages..."
@@ -69,8 +70,9 @@ case "$IMAGE_TYPE" in
 		;;
 esac
 
-wget -q -P $WDIR ${BASE_URL}/doca/${DOCA_VERSION}/${DISTRO}${DISTRO_VERSION}${DISTRO_KERNEL}/${ARCH}/$bootimages
-mv $WDIR/mlxbf-bootimages*arm64.deb $WDIR/mlxbf-bootimages.deb
+#wget -q -P $WDIR ${BASE_URL}/doca/${DOCA_VERSION}/${DISTRO}${DISTRO_VERSION}${DISTRO_KERNEL}/${ARCH}/$bootimages
+#mv $WDIR/mlxbf-bootimages*arm64.deb $WDIR/mlxbf-bootimages.deb
+cp ${CACHE}/bootimages/mlxbf-bootimages*arm64.deb $WDIR/mlxbf-bootimages.deb
 
 cp -a \
 	Dockerfile \
@@ -97,11 +99,17 @@ cd $WDIR
 
 if [ "$INCLUDE_DOCA_SERVICES" == "yes" ]; then
 	echo "Downloading DOCA services..."
-	wget --quiet -r -np -nH --cut-dirs=5 -R "index.html*" ${BASE_URL}/doca/${DOCA_VERSION}-${BSP_VERSION}/services/
+	#wget --quiet -r -np -nH --cut-dirs=5 -R "index.html*" ${BASE_URL}/doca/${DOCA_VERSION}-${BSP_VERSION}/services/
+	cp -r ${CACHE}/services/* .
 fi
 echo "Downloading $DISTRO base image..."
-wget -q --no-check-certificate $DISTRO_BASE_URL
+#wget -q --no-check-certificate $DISTRO_BASE_URL
+cp ${CACHE}/distro/* .
 docker_image=bfb_runtime_${DISTRO,,}${DISTRO_VERSION,,}
+
+# Get the deb files to install
+mkdir kernel_under_test
+cp ${CACHE}/bluefield_kernel_noble/* ./kernel_under_test
 
 docker rm -f BlueField_OS_${DISTRO}_${DISTRO_VERSION} 2> /dev/null
 

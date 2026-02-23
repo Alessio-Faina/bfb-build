@@ -8,6 +8,7 @@ RUN mkdir -p /opt/mellanox/doca/services/
 ADD telemetry-agent /opt/mellanox/doca/services/telemetry
 ADD blueman /opt/mellanox/doca/services/blueman
 ADD infrastructure /opt/mellanox/doca/services/infrastructure
+ADD kernel_under_test /opt/kernel_under_test
 
 ARG MLNX_FW_UPDATER=mlnx-fw-updater-signed
 ARG BMC_FW_PACKAGES="bf2-bmc-fw-signed bf3-bmc-fw-signed bf3-bmc-gi-signed bf3-bmc-nic-fw*"
@@ -21,7 +22,10 @@ ADD mlxbf-bootimages.deb .
 ADD 10-mlx-console-messages.conf /etc/sysctl.d/
 ADD repos/ /etc/apt/sources.list.d/
 ADD apt-preferences /etc/apt/preferences.d/99doca
-ADD --chown=0:0 --chmod=644 https://prod-cdn.packages.k8s.io/repositories/isv:/kubernetes:/core:/stable:/v1.34/deb/Release.key /etc/apt/keyrings/kubernetes.asc
+#ADD --chown=0:0 --chmod=644 https://prod-cdn.packages.k8s.io/repositories/isv:/kubernetes:/core:/stable:/v1.34/deb/Release.key /etc/apt/keyrings/kubernetes.asc
+RUN mkdir -p /etc/apt/keyrings/
+ADD https://prod-cdn.packages.k8s.io/repositories/isv:/kubernetes:/core:/stable:/v1.34/deb/Release.key /etc/apt/keyrings/kubernetes.asc
+RUN chown 0:0 /etc/apt/keyrings/kubernetes.asc && chmod 644 /etc/apt/keyrings/kubernetes.asc
 
 RUN apt update
 RUN dpkg -i /root/workspace/mlxbf-bootimages*.deb
@@ -30,19 +34,25 @@ RUN apt remove -y --purge $(dpkg --list "*openipmi*" | grep openipmi | awk '{pri
 # Avoid running flash-kernel post install
 RUN mkdir -p /run/systemd; echo docker > /run/systemd/container
 
-RUN apt install -y -f \
-    linux-bluefield=6.8.0.1016.17 \
-    linux-bluefield-headers-6.8.0-1016=6.8.0-1016.20 \
-    linux-bluefield-tools-6.8.0-1016=6.8.0-1016.20 \
-    linux-buildinfo-6.8.0-1016-bluefield=6.8.0-1016.20 \
-    linux-headers-6.8.0-1016-bluefield=6.8.0-1016.20 \
-    linux-headers-bluefield=6.8.0.1016.17 \
-    linux-image-6.8.0-1016-bluefield=6.8.0-1016.20 \
-    linux-image-bluefield=6.8.0.1016.17 \
-    linux-modules-6.8.0-1016-bluefield=6.8.0-1016.20 \
-    linux-modules-extra-6.8.0-1016-bluefield=6.8.0-1016.20 \
-    linux-tools-6.8.0-1016-bluefield=6.8.0-1016.20 \
-    linux-tools-bluefield=6.8.0.1016.17
+RUN apt install -y wireless-regdb linux-tools-common
+
+RUN dpkg -i /opt/kernel_under_test/linux-modules-*.deb /opt/kernel_under_test/linux-image-unsigned-*.deb
+RUN dpkg -i /opt/kernel_under_test/linux-bluefield-headers-*.deb /opt/kernel_under_test/linux-headers-*.deb
+RUN dpkg -i /opt/kernel_under_test/linux-tools-*.deb /opt/kernel_under_test/linux-bluefield-tools-*.deb
+RUN dpkg -i /opt/kernel_under_test/linux-buildinfo-*.deb
+#RUN apt install -y -f \
+#    linux-bluefield=6.8.0.1016.17 \
+#    linux-bluefield-headers-6.8.0-1016=6.8.0-1016.20 \
+#    linux-bluefield-tools-6.8.0-1016=6.8.0-1016.20 \
+#    linux-buildinfo-6.8.0-1016-bluefield=6.8.0-1016.20 \
+#    linux-headers-6.8.0-1016-bluefield=6.8.0-1016.20 \
+#    linux-headers-bluefield=6.8.0.1016.17 \
+#    linux-image-6.8.0-1016-bluefield=6.8.0-1016.20 \
+#    linux-image-bluefield=6.8.0.1016.17 \
+#    linux-modules-6.8.0-1016-bluefield=6.8.0-1016.20 \
+#    linux-modules-extra-6.8.0-1016-bluefield=6.8.0-1016.20 \
+#    linux-tools-6.8.0-1016-bluefield=6.8.0-1016.20 \
+#    linux-tools-bluefield=6.8.0.1016.17
 
 RUN apt-get clean -y && \
     apt-get update -o "Acquire::https::Verify-Peer=false" -y && \
